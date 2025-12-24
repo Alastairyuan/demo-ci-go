@@ -3,7 +3,7 @@ package demo
 import "testing"
 
 func TestAdd(t *testing.T) {
-if Add(1, 2) != 3 {
-t.Fatalf("expected 3")
-}
+	if Add(1, 2) != 3 {
+		t.Fatalf("expected 3")
+	}
 }
