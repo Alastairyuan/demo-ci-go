@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[1/4] tidy"
+echo "[0/5] gofmt"
+gofmt -w .
+git diff --exit-code
+
+echo "[1/5] tidy"
 go mod tidy
 git diff --exit-code
 
-echo "[2/4] build"
+echo "[2/5] build"
 go build ./...
 
-echo "[3/4] test"
+echo "[3/5] test"
 go test ./...
 
-echo "[4/4] vet"
+echo "[4/5] vet"
 go vet ./...
 
-echo "CI OK ✅"
+echo "CI OK "
