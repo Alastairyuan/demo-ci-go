@@ -1,6 +1,25 @@
 pipeline {
   agent any
   stages {
+    stage('Lint') {
+      steps {
+       sh '''
+         set -euxo pipefail
+         cat > "$WORKSPACE/in_lint.sh" <<'EOT'
+         set -eux
+         golangci-lint version
+         golangci-lint run --timeout=5m
+EOT
+
+        docker run --rm \
+          --volumes-from jenkins \
+          -w "$WORKSPACE" \
+          -u 1000:1000 \
+          golangci/golangci-lint:v1.59.1 \
+          bash "$WORKSPACE/in_lint.sh"
+      '''
+    }
+  }
     stage('CI') {
       steps {
         sh '''
