@@ -7,10 +7,14 @@ pipeline {
       set -euxo pipefail
       cat > "$WORKSPACE/in_lint.sh" <<'EOT'
       set -eux
-      export GOLANGCI_LINT_CACHE="$PWD/.cache/golangci-lint"
-      mkdir -p "$GOLANGCI_LINT_CACHE"
-      golangci-lint version
-      golangci-lint run --timeout=5m
+
+export GOLANGCI_LINT_CACHE="$PWD/.cache/golangci-lint"
+export GOCACHE="$PWD/.cache/go-build"
+export GOMODCACHE="$PWD/.cache/go-mod"
+mkdir -p "$GOLANGCI_LINT_CACHE" "$GOCACHE" "$GOMODCACHE"
+
+golangci-lint version
+golangci-lint run --timeout=5m
 EOT
 
         docker run --rm \
