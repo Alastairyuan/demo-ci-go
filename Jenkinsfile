@@ -50,5 +50,20 @@ EOT
         '''
       }
     }
+stage('Build Image') {
+  steps {
+    sh '''
+      set -euxo pipefail
+
+      IMAGE="demo-ci-go"
+      TAG="$(git rev-parse --short HEAD)"
+
+      echo "Build: ${IMAGE}:${TAG}"
+      docker version
+
+      docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" .
+
+      docker images | grep "${IMAGE}" | head -n 20 || true
+    '''
   }
 }
