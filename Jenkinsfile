@@ -10,7 +10,8 @@ pipeline {
           export GOCACHE="$PWD/.cache/go-build"
           export GOMODCACHE="$PWD/.cache/go-mod"
           mkdir -p "$GOCACHE" "$GOMODCACHE"
-          chmod +x ./ci.sh
+          chmod +x ./debug.sh ./ci.sh
+          ./debug.sh
           ./ci.sh
 EOT
           docker run --rm \
