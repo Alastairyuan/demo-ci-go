@@ -6,11 +6,13 @@ pipeline {
     sh '''
       set -euxo pipefail
       cat > "$WORKSPACE/in_lint.sh" <<'EOT'
-      set -eux
+set -eux
 
+# 让所有缓存都写在 workspace 里，不要去 /.cache（没权限）
 export GOLANGCI_LINT_CACHE="$PWD/.cache/golangci-lint"
 export GOCACHE="$PWD/.cache/go-build"
 export GOMODCACHE="$PWD/.cache/go-mod"
+
 mkdir -p "$GOLANGCI_LINT_CACHE" "$GOCACHE" "$GOMODCACHE"
 
 golangci-lint version
