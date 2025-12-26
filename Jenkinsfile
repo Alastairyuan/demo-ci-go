@@ -2,13 +2,16 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_LOCAL = "demo-ci-go"
-    GHCR_IMAGE  = "ghcr.io/alastairyuan/demo-ci-go"   // 必须全小写
+    APP_IMAGE = "demo-ci-go"
+    GHCR_REPO = "ghcr.io/alastairyuan/demo-ci-go"
+    // 让 cache 落在 workspace，避免容器里每次全重来
+    GOLANGCI_LINT_CACHE = "${WORKSPACE}/.cache/golangci-lint"
+    GOCACHE            = "${WORKSPACE}/.cache/go-build"
+    GOMODCACHE         = "${WORKSPACE}/.cache/go-mod"
   }
 
   options {
     timestamps()
-    disableConcurrentBuilds()
   }
 
   stages {
@@ -23,16 +26,12 @@ pipeline {
       steps {
         sh '''
           set -euxo pipefail
-
-          mkdir -p "$WORKSPACE/.cache/golangci-lint" "$WORKSPACE/.cache/go-build" "$WORKSPACE/.cache/go-mod"
-
-          docker run --rm \
-            --volumes-from jenkins \
-            -w "$WORKSPACE" \
-            -u 1000:1000 \
-            -e GOLANGCI_LINT_CACHE="$WORKSPACE/.cache/golangci-lint" \
-            -e GOCACHE="$WORKSPACE/.cache/go-build" \
-            -e GOMODCACHE="$WORKSPACE/.cache/go-mod" \
+          mkdir -p "$GOLANGCI_LINT_CACHE" "$GOCACHE" "$GOMODCACHE"
+          docker run --rm --volumes-from jenkins \
+            -w "$WORKSPACE" -u 1000:1000 \
+            -e GOLANGCI_LINT_CACHE="$GOLANGCI_LINT_CACHE" \
+            -e GOCACHE="$GOCACHE" \
+            -e GOMODCACHE="$GOMODCACHE" \
             golangci/golangci-lint:v1.59.1 \
             golangci-lint run --timeout=5m
         '''
@@ -40,72 +39,65 @@ pipeline {
     }
 
     stage('CI') {
-  steps {
-    sh '''
-      set -euxo pipefail
+      steps {
+        sh '''
+          set -euxo pipefail
+          mkdir -p "$GOCACHE" "$GOMODCACHE"
+          chmod +x ./ci.sh
+          docker run --rm --volumes-from jenkins \
+            -w "$WORKSPACE" -u 1000:1000 \
+            -e GOCACHE="$GOCACHE" \
+            -e GOMODCACHE="$GOMODCACHE" \
+            golang:1.22 \
+            bash -lc 'export PATH=/usr/local/go/bin:$PATH; ./ci.sh'
+        '''
+      }
+    }
 
-      mkdir -p "$WORKSPACE/.cache/go-build" "$WORKSPACE/.cache/go-mod"
-      chmod +x ./ci.sh
-
-      docker run --rm \
-        --volumes-from jenkins \
-        -w "$WORKSPACE" \
-        -u 1000:1000 \
-        -e GOCACHE="$WORKSPACE/.cache/go-build" \
-        -e GOMODCACHE="$WORKSPACE/.cache/go-mod" \
-        golang:1.22 \
-        bash -c 'export PATH=/usr/local/go/bin:$PATH; ./ci.sh'
-    '''
-  }
-}
     stage('Build Image') {
       steps {
         sh '''
           set -euxo pipefail
-
           TAG="$(git rev-parse --short HEAD)"
-
-          docker version
-          docker build -t "${IMAGE_LOCAL}:${TAG}" -t "${IMAGE_LOCAL}:latest" .
-
-          docker images | head -n 30 | grep -E "(${IMAGE_LOCAL})" || true
+          docker build -t "$APP_IMAGE:$TAG" -t "$APP_IMAGE:latest" .
+          docker images | head -n 30
         '''
       }
     }
 
     stage('Push Image to GHCR') {
-  steps {
-    withCredentials([string(credentialsId: 'ghcr-token', variable: 'GH_TOKEN')]) {
-      sh '''
-        set -euxo pipefail
+      steps {
+        withCredentials([string(credentialsId: 'ghcr-token', variable: 'GH_TOKEN')]) {
+          sh '''
+            set -euxo pipefail
 
-        echo "== DNS =="
-        getent hosts ghcr.io || true
+            echo "== DNS =="
+            getent hosts ghcr.io || true
 
-        echo "== HTTPS ping =="
-        curl -v --max-time 10 https://ghcr.io/v2/ || true
+            echo "== HTTPS ping =="
+            curl -v --max-time 10 https://ghcr.io/v2/ || true
 
-        TAG="$(git rev-parse --short HEAD)"
-        REPO="ghcr.io/alastairyuan/demo-ci-go"
+            TAG="$(git rev-parse --short HEAD)"
 
-        echo "$GH_TOKEN" | docker login ghcr.io -u alastairyuan --password-stdin
+            echo "$GH_TOKEN" | docker login ghcr.io -u alastairyuan --password-stdin
 
-        docker tag demo-ci-go:latest "$REPO:$TAG"
-        docker tag demo-ci-go:latest "$REPO:latest"
+            docker tag "$APP_IMAGE:latest" "$GHCR_REPO:$TAG"
+            docker tag "$APP_IMAGE:latest" "$GHCR_REPO:latest"
 
-        # 简单粗暴：push 失败就重试几次（网络抖动很吃这一套）
-        for i in 1 2 3; do
-          docker push "$REPO:$TAG" && break
-          echo "push failed, retry $i ..."
-          sleep 5
-        done
+            for i in 1 2 3; do
+              docker push "$GHCR_REPO:$TAG" && break
+              echo "push failed, retry $i ..."
+              sleep 5
+            done
 
-        docker push "$REPO:latest"
-      '''
+            docker push "$GHCR_REPO:latest"
+          '''
+        }
+      }
     }
-  }
-}
-    
+
+  } // stages
+
   post {
     always {
       sh '''
