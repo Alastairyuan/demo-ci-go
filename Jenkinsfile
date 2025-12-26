@@ -74,26 +74,38 @@ pipeline {
     }
 
     stage('Push Image to GHCR') {
-      steps {
-        withCredentials([string(credentialsId: 'gh-token', variable: 'GH_TOKEN')]) {
-          sh '''
-            set -euxo pipefail
+  steps {
+    withCredentials([string(credentialsId: 'ghcr-token', variable: 'GH_TOKEN')]) {
+      sh '''
+        set -euxo pipefail
 
-            TAG="$(git rev-parse --short HEAD)"
+        echo "== DNS =="
+        getent hosts ghcr.io || true
 
-            echo "$GH_TOKEN" | docker login ghcr.io -u alastairyuan --password-stdin
+        echo "== HTTPS ping =="
+        curl -v --max-time 10 https://ghcr.io/v2/ || true
 
-            docker tag "${IMAGE_LOCAL}:latest" "${GHCR_IMAGE}:${TAG}"
-            docker tag "${IMAGE_LOCAL}:latest" "${GHCR_IMAGE}:latest"
+        TAG="$(git rev-parse --short HEAD)"
+        REPO="ghcr.io/alastairyuan/demo-ci-go"
 
-            docker push "${GHCR_IMAGE}:${TAG}"
-            docker push "${GHCR_IMAGE}:latest"
-          '''
-        }
-      }
+        echo "$GH_TOKEN" | docker login ghcr.io -u alastairyuan --password-stdin
+
+        docker tag demo-ci-go:latest "$REPO:$TAG"
+        docker tag demo-ci-go:latest "$REPO:latest"
+
+        # 简单粗暴：push 失败就重试几次（网络抖动很吃这一套）
+        for i in 1 2 3; do
+          docker push "$REPO:$TAG" && break
+          echo "push failed, retry $i ..."
+          sleep 5
+        done
+
+        docker push "$REPO:latest"
+      '''
     }
   }
-
+}
+    
   post {
     always {
       sh '''
