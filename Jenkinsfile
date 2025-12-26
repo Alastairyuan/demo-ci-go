@@ -96,7 +96,7 @@ pipeline {
       }
       steps {
         withCredentials([
-          usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')
+          usernamePassword(credentialsId: 'gh-token', usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')
         ]) {
           sh '''
             set -euxo pipefail
