@@ -67,14 +67,15 @@ EOT
         '''
       }
     }
-    stage('Push Image') {
+   stage('Push Image') {
   steps {
     withCredentials([string(credentialsId: 'gh-token', variable: 'GH_TOKEN')]) {
       sh '''
         set -euxo pipefail
-        echo "$GH_TOKEN" | docker login ghcr.io -u  Alastairyuan --password-stdin
 
-        IMAGE="ghcr.io/ Alastairyuan/demo-ci-go"
+        echo "$GH_TOKEN" | docker login ghcr.io -u alastairyuan --password-stdin
+
+        IMAGE="ghcr.io/alastairyuan/demo-ci-go"
         TAG="$(git rev-parse --short HEAD)"
 
         docker tag demo-ci-go:latest "$IMAGE:$TAG"
