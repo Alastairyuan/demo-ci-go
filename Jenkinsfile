@@ -40,24 +40,24 @@ pipeline {
     }
 
     stage('CI') {
-      steps {
-        sh '''
-          set -euxo pipefail
+  steps {
+    sh '''
+      set -euxo pipefail
 
-          mkdir -p "$WORKSPACE/.cache/go-build" "$WORKSPACE/.cache/go-mod"
+      mkdir -p "$WORKSPACE/.cache/go-build" "$WORKSPACE/.cache/go-mod"
+      chmod +x ./ci.sh
 
-          docker run --rm \
-            --volumes-from jenkins \
-            -w "$WORKSPACE" \
-            -u 1000:1000 \
-            -e GOCACHE="$WORKSPACE/.cache/go-build" \
-            -e GOMODCACHE="$WORKSPACE/.cache/go-mod" \
-            golang:1.22 \
-            bash -lc './ci.sh'
-        '''
-      }
-    }
-
+      docker run --rm \
+        --volumes-from jenkins \
+        -w "$WORKSPACE" \
+        -u 1000:1000 \
+        -e GOCACHE="$WORKSPACE/.cache/go-build" \
+        -e GOMODCACHE="$WORKSPACE/.cache/go-mod" \
+        golang:1.22 \
+        bash -c 'export PATH=/usr/local/go/bin:$PATH; ./ci.sh'
+    '''
+  }
+}
     stage('Build Image') {
       steps {
         sh '''
