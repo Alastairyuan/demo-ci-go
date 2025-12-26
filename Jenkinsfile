@@ -67,7 +67,7 @@ pipeline {
 
     stage('Push Image to GHCR') {
       steps {
-        withCredentials([string(credentialsId: 'ghcr-token', variable: 'GH_TOKEN')]) {
+       withCredentials([string(credentialsId: 'gh-token', variable: 'GH_TOKEN')]) {
           sh '''
             set -euxo pipefail
 
